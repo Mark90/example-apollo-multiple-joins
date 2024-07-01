@@ -1,0 +1,66 @@
+services:
+
+  #
+  # Federation
+  #
+  rover-compose:
+    build:
+      context: docker/federation
+      dockerfile: rover.Dockerfile
+    depends_on:
+      author-service:
+        # condition: service_started
+        condition: service_healthy
+      book-service:
+        # condition: service_started
+        condition: service_healthy
+    environment:
+      - APOLLO_ELV2_LICENSE=accept
+    command: supergraph compose --config /app/supergraph-config.yaml --output /app/supergraph.graphql --skip-update-check
+    volumes:
+      - ./docker/federation:/app
+
+  federation:
+    image: ghcr.io/apollographql/router:v1.47.0
+    ports:
+      - "4000:4000"
+    depends_on:
+      rover-compose:
+        condition: service_completed_successfully
+    command: --config /app/router-config.yaml --supergraph /app/supergraph.graphql
+    volumes:
+      - ./docker/federation:/app
+
+  #
+  # Apps
+  #
+
+  author-service:
+    build:
+      context: apps/authors
+    ports:
+      - "8080:8000"
+    command: uvicorn main:app --host 0.0.0.0 --no-access-log --reload
+    volumes:
+      - ./apps/authors:/src
+    healthcheck:
+      test: curl --fail http://localhost:8000/api/graphql || exit 1
+      interval: 2s
+      timeout: 5s
+      retries: 3
+      start_period: 2s
+
+  book-service:
+    build:
+      context: apps/books
+    ports:
+      - "8081:8000"
+    command: uvicorn main:app --host 0.0.0.0 --no-access-log --reload
+    volumes:
+      - ./apps/books:/src
+    healthcheck:
+      test: curl --fail http://localhost:8000/api/graphql || exit 1
+      interval: 2s
+      timeout: 5s
+      retries: 3
+      start_period: 2s

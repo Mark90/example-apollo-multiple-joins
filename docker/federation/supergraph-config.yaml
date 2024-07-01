@@ -1,0 +1,10 @@
+federation_version: =2.7.1
+subgraphs:
+  authors:
+    routing_url: http://author-service:8000/api/graphql
+    schema:
+      subgraph_url: http://author-service:8000/api/graphql
+  books:
+    routing_url: http://book-service:8000/api/graphql
+    schema:
+      subgraph_url: http://book-service:8000/api/graphql
